@@ -1,0 +1,33 @@
+*** mm9_chrom_info.c	2010-04-27 09:54:52.000000000 -0400
+--- foobar	2010-04-27 09:54:23.000000000 -0400
+***************
+*** 43,55 ****
+  #define MAX_HASH_VALUE 35
+  /* maximum key range = 32, duplicates = 0 */
+  
+- #ifdef __GNUC__
+- __inline
+- #else
+- #ifdef __cplusplus
+- inline
+- #endif
+- #endif
+  static unsigned int
+  hash (str, len)
+       register const char *str;
+--- 43,48 ----
+***************
+*** 87,98 ****
+    return len + asso_values[(unsigned char)str[len - 1]];
+  }
+  
+- #ifdef __GNUC__
+- __inline
+- #if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
+- __attribute__ ((__gnu_inline__))
+- #endif
+- #endif
+  struct chrom_info *
+  get_chrom_info (str, len)
+       register const char *str;
+--- 80,85 ----
