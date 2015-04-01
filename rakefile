@@ -1,0 +1,75 @@
+require 'rake/clean'
+
+cflags  = `pkg-config --cflags glib-2.0 gsl`.strip
+cflags  = "#{cflags} -g -O2 -std=c99 -Wall -c"
+ldflags = `pkg-config --libs glib-2.0 gsl`.strip
+
+# rule for creating object files ##############################
+rule '.o' => '.c' do |t|
+    sh "cc #{cflags} -o #{t.name} #{t.source}" 
+end
+c_files = FileList["*.c"]
+
+
+# rules for noweb files #######################################
+rule '.c' => '.nw' do |t|
+    sh "notangle -R#{t.name} #{t.source} > #{t.name}"
+end
+rule '.h' => '.nw' do |t|
+    sh "notangle -R#{t.name} #{t.source} > #{t.name}"
+end
+rule '.pdf' => '.nw' do |t|
+	sh %Q@noweave -autodefs c -index -latex #{t.source} > templatex.tex
+	pdflatex templatex.tex
+	pdflatex templatex.tex
+	mv templatex.pdf #{t.name}
+	rm templatex.*
+	open #{t.name}@ 
+end
+noweb_files = FileList["*.nw"]
+pdf_files   = noweb_files.collect {|x| x.sub( /nw\z/, 'pdf')}
+
+desc 'Make all pdf files'
+task :pdf => pdf_files
+
+# rules for executables ########################################
+TARGETS = ['split-bed', 'frag-size-mm9', 'frag-size-hg19', 'rough-peaks-mm9', 'bowtie-to-wig-mm9', 'bed-to-wig-mm9', 'bed-to-wig-mm9',
+    'bed-to-tuple', 'peak-summary', 'sample-bed']
+task :default => TARGETS
+
+# synthesize default file tasks for each target.  if more
+# than one object file is to be linked, add it manually later
+genomes = ['mm9', 'hg18', 'hg19']
+TARGETS.each do |target|
+    # if a target ends in a genome name, the basic object file
+    # should not be genome specific
+    pieces = target.split('-')
+    if genomes.index(pieces[-1]) == nil
+        o = "#{target}.o"
+    else
+        o = "#{pieces[0..-2].join('-')}.o"
+    end
+    file target => [o] do |t|
+        sh "cc #{ldflags} -o #{t.name} #{t.prerequisites.join(' ')}"
+    end
+end
+
+
+file 'frag-size-mm9'     => 'mm9_chrom_info.o'
+file 'rough-peaks-mm9'   => 'mm9_chrom_info.o'
+file 'bowtie-to-wig-mm9' => 'mm9_chrom_info.o'
+file 'bed-to-wig-mm9'    => 'mm9_chrom_info.o'
+file 'frag-size-hg19'    => 'hg19_chrom_info.o'
+
+# other tasks ##################################################
+file 'mm9_chrom_info.c' => 'mm9_chrom_info.keys' do |t|
+	sh "gperf -I -t -N get_chrom_info #{t.prerequisites} > #{t.name}"
+    sh "patch -i mm9_chrom_info.patch"
+end
+file 'hg19_chrom_info.c' => 'hg19_chrom_info.keys' do |t|
+	sh "gperf -I -t -N get_chrom_info #{t.prerequisites} > #{t.name}"
+    sh "patch -i hg19_chrom_info.patch"
+end
+
+CLEAN.include('*.o', '*.pdf')
+CLOBBER.include(TARGETS)

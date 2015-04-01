@@ -1,0 +1,104 @@
+
+\section{Read in a 6 column bed file and save it as a Ntuple file}
+
+This program takes a bed file name and an outfile name and saves
+the segment information of each lane as a struct containing
+the chromosome, start, end, and strand information.
+
+<<bed-to-tuple.c>>=
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <glib.h>
+#include <gsl/gsl_ntuple.h>
+
+const int buffsize = 1024;
+<<types>>
+<<functions>>
+
+int
+main (int argc, char **argv)
+{
+    <<process-command-line>>
+    <<process-bed-file>>
+}
+@
+
+First the standard help/usage function:
+<<functions>>=
+void usage ()
+{
+    printf("bed-to-tuple\n"
+           "--------------------------------------------\n"
+           "Usage:\n"
+           "   bed-to-tuple bedfile outfile\n\n"
+           "Read in a bed file and save it as a (more\n"
+           "efficient) tuple file for later processing\n");
+}
+@
+
+\subsection{processing command line and open the infile}
+<<process-command-line>>=
+if (argc < 3) {
+    usage ();
+    return 1;
+} 
+char *infile_name  = argv[1];
+char *outfile_name = argv[2];
+printf("reading from %s\nwriting to %s\n", infile_name, outfile_name);
+
+FILE *infile = fopen(infile_name, "r");
+if (infile == NULL) {
+    printf("Could not open infile %s\n", infile_name);
+    return 1;
+}
+@
+
+\subsection{Process bed file}
+Since the bed files used in these circumstances should have pretty 
+short lines, use fgets with a reasonable buffer size (fgets reads
+up to and including newline).  
+We read a line, get chromosome, start, end, and strand information,
+create a segment structure and save it to the tuple file.
+Note that the chromosome length is limited to 5 characters at the moment.
+This may have to change in the future.
+
+<<types>>=
+typedef unsigned int uint;
+typedef struct _segment 
+{
+    char chrom[6];
+    uint start;
+    uint end;
+    char strand;
+} Segment;
+@
+
+And a function to print the tuple
+<<functions>>=
+void print_segment(const Segment *seg)
+{
+    printf("%6s %i %i %c\n", seg->chrom, seg->start, seg->end, seg->strand);
+}
+@
+
+And here is the main loop for processing the bed input file:
+
+<<process-bed-file>>=
+char buffer[buffsize + 1];
+Segment seg;
+int nr_parsed_items = 0;
+gsl_ntuple *ntuple 
+      = gsl_ntuple_create (outfile_name, &seg, sizeof (seg));
+
+while (fgets(buffer, buffsize, infile) != NULL) {
+    /* parse the line */
+    nr_parsed_items = sscanf(buffer, "%5s %u %u %*s %*s %c", seg.chrom, &(seg.start), &(seg.end), &(seg.strand));
+    /* write the tuple */
+    //print_segment(&seg);
+    gsl_ntuple_write(ntuple);
+}
+gsl_ntuple_close(ntuple);
+
+@

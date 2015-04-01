@@ -1,0 +1,13 @@
+*.o
+*.pdf
+bed-to-tuple
+bed-to-wig-mm9
+bowtie-to-wig-mm9
+frag-size-hg19
+frag-size-mm9
+peak-summary
+rough-peaks-mm9
+sample-bed
+split-bed
+.DS_Store
+.Rhistory
